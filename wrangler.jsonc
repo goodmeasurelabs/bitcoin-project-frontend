@@ -18,9 +18,10 @@
     "NEWSLETTER_ENV": "production",
     "NEWSLETTER_SEND_ENABLED": "false",
     "MIGRATION_CRON_ENABLED": "false",
-    "MIGRATION_RELAY_ENABLED": "false",
-    "MIGRATION_PRODUCTION_WRITES_ENABLED": "false",
-    "URL": "https://whatsbitcoinsprice.com"
+    "MIGRATION_RELAY_ENABLED": "true",
+    "MIGRATION_PRODUCTION_WRITES_ENABLED": "true",
+    "URL": "https://whatsbitcoinsprice.com",
+    "MIGRATION_NETLIFY_HOST": "whatsbitcoinsprice.netlify.app"
   },
   "observability": {
     "enabled": true
