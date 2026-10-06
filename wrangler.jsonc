@@ -17,7 +17,7 @@
   "vars": {
     "NEWSLETTER_ENV": "production",
     "NEWSLETTER_SEND_ENABLED": "false",
-    "MIGRATION_CRON_ENABLED": "false",
+    "MIGRATION_CRON_ENABLED": "true",
     "MIGRATION_RELAY_ENABLED": "true",
     "MIGRATION_PRODUCTION_WRITES_ENABLED": "true",
     "URL": "https://whatsbitcoinsprice.com",
@@ -32,5 +32,24 @@
       "database_name": "gm-bitcoin-data",
       "database_id": "74f8cb0b-6a5f-47fd-9152-ef725eb9f998"
     }
-  ]
+  ],
+  "workers_dev": true,
+  "routes": [
+    {
+      "pattern": "whatsbitcoinsprice.com",
+      "custom_domain": true,
+      "zone_id": "825073b6719b65a22516facb79187b4a"
+    },
+    {
+      "pattern": "www.whatsbitcoinsprice.com",
+      "custom_domain": true,
+      "zone_id": "825073b6719b65a22516facb79187b4a"
+    }
+  ],
+  "triggers": {
+    "crons": [
+      "0 6 * * *",
+      "0 13 * * *"
+    ]
+  }
 }

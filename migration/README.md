@@ -1,11 +1,13 @@
-# Bitcoin data handoff — local readiness only
+# Bitcoin data handoff
 
-No script in this directory has been run against production. Both Worker release flags default to false. A missing or closed `migration_control` row also rejects production mutations. Preview requests retain the separate `preview` namespace.
+The handoff completed on October 6, 2026. D1 is the production authority and both custom domains serve the Worker. Netlify retains the full relay release as rollback, with automatic publishing locked and unpublished deployment access blocked. Email sending remains disabled. The migration scripts below describe the original guarded handoff and must not be rerun against the old Blobs snapshot. Private snapshots, release IDs, and verification evidence live in the operational ledger outside Git.
+
+A missing or closed `migration_control` row rejects production mutations. Preview requests retain the separate `preview` namespace.
 
 ## Release boundaries
 
 - The authenticated endpoint is fixed at `https://gm-bitcoin-price.david-ee6.workers.dev/__gm-migration/relay/<known-function>`.
-- Configure a dedicated random secret of at least 32 characters on this Worker and the existing Netlify site's server runtime only. This implementation does not generate or upload it. Never use the Cloudflare deployment token as the relay secret.
+- Configure a dedicated random secret of at least 32 characters on this Worker and the existing Netlify project. On Starter, project variables use encrypted storage with all scopes; keep the credential out of client code, build exports, and snippets, and scan build output before publishing. Only the server relay reads it. This implementation does not generate or upload it. Never use the Cloudflare deployment token as the relay secret.
 - Worker variables: `MIGRATION_RELAY_ENABLED=true`, `MIGRATION_PRODUCTION_WRITES_ENABLED=true`, and `MIGRATION_NETLIFY_HOST` equal to the independently verified stable Netlify hostname. The D1 control row still starts closed. Keep email sending and Cloudflare cron disabled during the handoff.
 - Netlify runtime variables: `MIGRATION_NETLIFY_RELAY_ENABLED=true` and `MIGRATION_RELAY_SECRET`. Netlify variables are deployment-time values; set them using the provider's supported secret configuration before building the relay release. Shell variables alone do not establish deployed Netlify runtime values.
 - The relay preserves original URL, method, query, body, cookies, job authorization, webhook signature headers, and trusted `context.ip`. Original handlers still enforce their existing origin and job authentication. Normal preview requests cannot select production by headers.
@@ -48,4 +50,4 @@ Before reopening writes, rollback to the preserved original Netlify deploy is sa
 
 Existing newsletter code has read-modify-write races for rate limits and subscriber status, plus separate subscriber/token writes. This change preserves behavior and does not refactor delivery. Address conditional subscriber updates and transactional token creation before enabling sending. Current game writes already use atomic ETag comparison and create-if-absent.
 
-Material unresolved decisions: historical-writer fencing if unavailable on the existing plan, any paid access control, or a prolonged interruption. Relay credentials remain narrow server-to-server credentials; no new service or broader account token is needed.
+Historical deploys are fenced with project-specific unpublished-deploy traffic rules on the existing plan. Relay credentials remain narrow server-to-server credentials; no new service or broader account token is needed.
