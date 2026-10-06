@@ -106,13 +106,14 @@ test('relay preserves raw webhook/query/auth/response cookies and never retries 
       assert.equal(req.url, original); assert.equal(req.method, 'POST'); assert.equal(await req.text(), raw);
       assert.equal(req.headers.get('svix-signature'), 'synthetic-signature'); assert.equal(req.headers.get('authorization'), 'Bearer original-job');
       assert.equal(req.headers.get('cookie'), 'one=1'); assert.equal(req.headers.get('x-gm-relay-authorization'), null); assert.equal(context.ip, '2001:db8::4');
-      const headers = new Headers(); headers.append('set-cookie', 'a=1; Path=/'); headers.append('set-cookie', 'b=2; Path=/');
+      const headers = new Headers(); headers.append('set-cookie', 'a=1; Path=/'); headers.append('set-cookie', 'b=2; Path=/'); headers.set('Content-Encoding', 'gzip'); headers.set('Content-Length', '999');
       return new Response('original response', { status: 202, headers });
     });
   } });
   const response = await relay(new Request(original, { method: 'POST', headers: { 'svix-signature': 'synthetic-signature', authorization: 'Bearer original-job', cookie: 'one=1' }, body: raw }), { ip: '2001:db8::4' });
   assert.equal(calls, 1); assert.equal(response.status, 202); assert.equal(await response.text(), 'original response');
   assert.deepEqual(response.headers.getSetCookie(), ['a=1; Path=/', 'b=2; Path=/']);
+  assert.equal(response.headers.get('Content-Encoding'), null); assert.equal(response.headers.get('Content-Length'), null);
   let attempts = 0;
   const failing = createRelay('game', { env: { MIGRATION_NETLIFY_RELAY_ENABLED: 'true', MIGRATION_RELAY_SECRET: SECRET }, send: () => { attempts++; throw new Error('ambiguous network failure'); } });
   assert.equal((await failing(request(LIVE, 'game', { action: 'lock' }), { ip: '192.0.2.1' })).status, 502);

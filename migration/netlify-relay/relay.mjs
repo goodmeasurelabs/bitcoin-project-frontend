@@ -24,6 +24,10 @@ export function createRelay(name, { env = process.env, send = fetch } = {}) {
       // Exactly one attempt. A network error after a write has an ambiguous outcome.
       const response = await send(BASE + name, { method: request.method, headers, body, redirect: 'manual', signal: AbortSignal.timeout(45000) });
       const result = new Response(response.body, response);
+      // Node fetch decompresses upstream bodies but retains their wire headers.
+      // Let Netlify compute fresh framing/encoding for this decoded body.
+      result.headers.delete('Content-Encoding');
+      result.headers.delete('Content-Length');
       result.headers.set('Cache-Control', 'no-store');
       return result;
     } catch {
