@@ -101,10 +101,21 @@ export async function marketTrades() {
     `https://api.exchange.coinbase.com/products/BTC-USD/trades?limit=1000&_=${Date.now()}`,
     {
       signal: AbortSignal.timeout(6000),
-      headers: { Accept: "application/json", "Cache-Control": "no-cache" },
+      headers: {
+        Accept: "application/json",
+        "Cache-Control": "no-cache",
+        "User-Agent": "GoodMeasure-BitcoinPrice/1.0 (+https://whatsbitcoinsprice.com)",
+      },
     },
   );
-  if (!r.ok) throw new Error("Market feed is unavailable. Please try again.");
+  if (!r.ok) {
+    const error = await r.json().catch(() => ({}));
+    console.warn("Coinbase trade feed request failed", {
+      status: r.status,
+      message: typeof error.message === "string" ? error.message.slice(0, 200) : undefined,
+    });
+    throw new Error("Market feed is unavailable. Please try again.");
+  }
   return cleanTrades(await r.json());
 }
 
