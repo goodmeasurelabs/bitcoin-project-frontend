@@ -1,0 +1,29 @@
+name: Deploy Cloudflare
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: cloudflare-production
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: cloudflare-production
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - run: npm test
+      - run: npx opennextjs-cloudflare build
+      - uses: cloudflare/wrangler-action@953926a2e2182532811c01a25e53647d93bf07c0 # v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_DEPLOY_TOKEN }}
+          accountId: ee641897681cddb2b23b18fb4b639034
+          wranglerVersion: '4.147.0'
+          command: deploy --config wrangler.ci.jsonc --keep-vars
+      - name: Verify live homepage
+        run: curl --fail --silent --show-error --retry 3 https://whatsbitcoinsprice.com/ --output /dev/null
