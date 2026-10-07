@@ -1,6 +1,6 @@
 import { getDailyEdition } from "@/services/daily";
 import DailyBitcoin from "../components/DailyBitcoin";
-export const revalidate = 60;
+export const dynamic = 'force-dynamic';
 export const metadata = {
   title: "The Daily Bitcoin · Real things. Bitcoin prices.",
   description:

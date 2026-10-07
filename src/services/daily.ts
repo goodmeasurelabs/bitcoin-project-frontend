@@ -1,14 +1,19 @@
+import { getCloudflareContext } from '@opennextjs/cloudflare';
+import { headers } from 'next/headers';
+import { createD1Store } from '../../cloudflare/d1-store.mjs';
 import firstEdition from "@/data/first-edition.json";
 import type { Edition } from "@/app/components/DailyBitcoin";
 export async function getDailyEdition(): Promise<Edition> {
   try {
-    const response = await fetch(
-      "https://whatsbitcoinsprice.com/.netlify/functions/daily-feed",
-      { next: { revalidate: 60 }, signal: AbortSignal.timeout(4000) },
-    );
-    if (response.ok) {
-      const data = await response.json();
-      if (data.editions?.length) return data.editions[0];
+    const { env } = getCloudflareContext();
+    const host = (await headers()).get('host')?.split(':')[0];
+    const db = createD1Store((env as unknown as { BITCOIN_DB: Parameters<typeof createD1Store>[0] }).BITCOIN_DB,
+      host === 'whatsbitcoinsprice.com' || host === 'www.whatsbitcoinsprice.com' ? 'production' : 'preview');
+    const { blobs } = await db.list({ prefix: 'editions/' });
+    const latest = blobs.map((item: { key: string }) => item.key).sort().at(-1);
+    if (latest) {
+      const edition = await db.get(latest, { type: 'json' });
+      if (edition) return edition;
     }
   } catch {
     /* Keep the dated launch snapshot when the feed is unavailable. */

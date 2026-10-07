@@ -1,0 +1,64 @@
+name: Deploy Cloudflare
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: cloudflare-production
+  cancel-in-progress: false
+env:
+  NEXT_TELEMETRY_DISABLED: '1'
+  WRANGLER_SEND_METRICS: 'false'
+  WRANGLER_LOG_SANITIZE: 'true'
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - run: npm test
+      - run: npx --no-install opennextjs-cloudflare build
+      - run: npx --no-install wrangler deploy --dry-run --config wrangler.ci.jsonc --outdir .worker-dry-run
+  deploy:
+    needs: validate
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: cloudflare-production
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - run: npm test
+      - run: npx --no-install opennextjs-cloudflare build
+      - name: Require the current main revision
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          current_sha=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')
+          test "$current_sha" = "$GITHUB_SHA"
+      - name: Require approved deployment credential
+        env:
+          DEPLOY_TOKEN: ${{ secrets.CLOUDFLARE_DEPLOY_TOKEN }}
+        run: test -n "$DEPLOY_TOKEN"
+      - uses: cloudflare/wrangler-action@953926a2e2182532811c01a25e53647d93bf07c0 # v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_DEPLOY_TOKEN }}
+          accountId: ee641897681cddb2b23b18fb4b639034
+          wranglerVersion: '4.147.0'
+          command: deploy --config wrangler.ci.jsonc --keep-vars --message="GitHub commit ${{ github.sha }}"
+      - name: Verify live homepage
+        run: curl --fail --silent --show-error --retry 3 https://whatsbitcoinsprice.com/ --output /dev/null

@@ -87,7 +87,7 @@ export default function PurchasingPower({
   const refreshLock = useRef(false);
   const previousFocus = useRef<HTMLElement | null>(null);
   const modal = useRef<HTMLDivElement>(null);
-  const amountTimer = useRef<ReturnType<typeof setTimeout>>();
+  const amountTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const btc = parseBtc(amount);
   const rate = market.quote?.rates.USD ?? null;
   const value = btc !== null && rate !== null ? btc * rate : null;
