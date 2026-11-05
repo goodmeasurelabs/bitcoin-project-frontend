@@ -50,9 +50,9 @@ test('inspection records only scoped Worker metadata and sanitized binding ident
   const text = readFileSync(join(cwd, 'release-evidence/inspection.json'), 'utf8');
   const saved = JSON.parse(text);
   assert.equal(saved.mode, 'read-only-inspection');
-  assert.equal(saved.bindings.find(binding => binding.type === 'd1').databaseId, config.d1_databases[0].database_id);
-  assert(saved.bindings.find(binding => binding.name === 'EXISTING_VARIABLE').valueSha256);
-  for (const value of ['private-value-never-output', 'fixture-token-never-output']) {
+  assert(saved.databaseIdentityMatchesReviewed);
+  assert(saved.runtimePolicyMatchesReviewed);
+  for (const value of ['private-value-never-output', 'fixture-token-never-output', config.d1_databases[0].database_id, 'valueSha256']) {
     assert(!text.includes(value)); assert(!result.stdout.includes(value)); assert(!result.stderr.includes(value));
   }
   assert.notEqual(run(cwd, fixture(), [], 'refs/heads/review').status, 0, 'a branch must not pass the publication guard');
@@ -76,9 +76,9 @@ test('requires exact active-version source and retains failed after evidence for
   const stale = fixture(); stale.version.annotations['workers/message'] = 'other source';
   stale.settings.annotations = { 'workers/message': `GitHub commit ${sha}` };
   assert.notEqual(run(cwd, stale, ['--after']).status, 0);
-  const drift = fixture(); drift.settings.bindings.find(binding => binding.name === 'EXISTING_VARIABLE').text = 'changed-value';
+  const drift = fixture(); drift.settings.bindings.find(binding => binding.name === 'NEWSLETTER_SEND_ENABLED').text = 'true';
   assert.notEqual(run(cwd, drift, ['--after']).status, 0);
   const saved = JSON.parse(readFileSync(join(cwd, 'release-evidence/after.json'), 'utf8'));
   assert(!saved.sourceCommit, 'failed source/preservation checks must not claim verified source');
-  assert(saved.bindings.find(binding => binding.name === 'EXISTING_VARIABLE').valueSha256);
+  assert.equal(saved.runtimePolicyMatchesReviewed, false);
 }));

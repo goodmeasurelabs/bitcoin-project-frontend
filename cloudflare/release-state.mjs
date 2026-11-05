@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 
 const account = 'ee641897681cddb2b23b18fb4b639034';
@@ -13,7 +12,6 @@ const policy = {
   MIGRATION_NETLIFY_HOST: 'whatsbitcoinsprice.netlify.app',
 };
 const token = process.env.CLOUDFLARE_DEPLOY_TOKEN;
-const hash = text => createHash('sha256').update(text).digest('hex');
 const forbiddenConfig = value => value && typeof value === 'object' && Object.entries(value)
   .some(([key, child]) => ['route', 'routes', 'custom_domain', 'zone_id', 'zone_name', 'migrations', 'migrations_dir', 'migrations_table'].includes(key) || forbiddenConfig(child));
 
@@ -45,22 +43,27 @@ async function main() {
   const [settings, deployments, schedules, subdomain] = await Promise.all([
     api(base + '/settings'), api(base + '/deployments'), api(base + '/schedules'), api(base + '/subdomain'),
   ]);
-  const bindings = (settings.bindings || []).map(binding => ({
-    name: binding.name, type: binding.type,
-    ...(binding.type === 'd1' ? { databaseId: binding.id } : {}),
-    ...(binding.type === 'plain_text' ? { valueSha256: typeof binding.text === 'string' ? hash(binding.text) : null } : {}),
-  })).sort((a, b) => a.name.localeCompare(b.name));
+  const bindings = (settings.bindings || []).map(({ name, type }) => ({ name, type }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const databases = (settings.bindings || []).filter(binding => binding.type === 'd1');
+  const databaseIdentityMatchesReviewed = databases.length === 1 && databases[0].name === 'BITCOIN_DB' && databases[0].id === databaseId;
+  const runtimePolicyMatchesReviewed = Object.entries(policy).every(([name, expected]) => {
+    const binding = (settings.bindings || []).find(binding => binding.name === name);
+    return binding?.type === 'plain_text' && binding.text === expected;
+  });
   const active = deployments.deployments?.[0];
   const snapshot = {
     checkedAt: new Date().toISOString(), accountId: account, workerName: worker,
     requestedSourceSha: process.env.GITHUB_SHA,
     mode: inspect ? 'read-only-inspection' : 'production-release',
     deployment: { id: active?.id, versions: active?.versions || [] }, bindings,
+    databaseIdentityMatchesReviewed, runtimePolicyMatchesReviewed,
     schedules: (schedules.schedules || []).map(({ cron }) => cron).sort(),
     workersDev: { enabled: subdomain.enabled, previewsEnabled: subdomain.previews_enabled },
     compatibilityDate: settings.compatibility_date, compatibilityFlags: settings.compatibility_flags,
     routingVerification: 'Separate authenticated UI before/after capture; this scoped CI does not manage domains or zone routes.',
     dataVerification: 'Worker binding identity only: no D1 queries, migrations, imports, gate changes or application mutations.',
+    environmentVerification: 'Exact reviewed policy checked in memory. Other plaintext values remain unrecorded and are preserved by --keep-vars; artifacts contain no values or hashes.',
   };
   await mkdir('release-evidence', { recursive: true });
   const after = process.argv.includes('--after');
@@ -69,7 +72,7 @@ async function main() {
   await writeFile(file, JSON.stringify(snapshot, null, 2) + '\n');
   assert(active?.id && active.versions?.length, 'Missing active deployment/rollback version');
   assert(bindings.every(binding => ['assets', 'plain_text', 'secret_text', 'd1'].includes(binding.type)), 'Unreviewed runtime binding type');
-  assert.deepEqual(bindings.filter(binding => binding.type === 'd1'), [{ name: 'BITCOIN_DB', type: 'd1', databaseId }], 'Existing D1 identity differs from the reviewed database');
+  assert(databaseIdentityMatchesReviewed, 'Existing D1 identity differs from the reviewed database');
   assert(bindings.some(binding => binding.name === 'ASSETS' && binding.type === 'assets'), 'Missing existing asset binding');
   assert(bindings.some(binding => binding.name === 'MIGRATION_RELAY_SECRET' && binding.type === 'secret_text'), 'Missing encrypted existing relay secret');
   for (const [name, expected] of Object.entries(policy)) {
@@ -82,7 +85,7 @@ async function main() {
   assert.equal(snapshot.workersDev.enabled, config.workers_dev, 'Existing workers.dev state requires review');
   if (after) {
     const before = JSON.parse(await readFile('release-evidence/before.json', 'utf8'));
-    assert.deepEqual(snapshot.bindings, before.bindings, 'Runtime binding identities, variable hashes or secret names changed');
+    assert.deepEqual(snapshot.bindings, before.bindings, 'Runtime binding names/types or secret names changed');
     assert.deepEqual(snapshot.schedules, before.schedules, 'Schedules changed');
     assert.deepEqual(snapshot.workersDev, before.workersDev, 'Preview/worker URL state changed');
     assert.equal(active.versions.length, 1, 'Unexpected traffic split');
