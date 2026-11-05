@@ -7,7 +7,7 @@ export const metadata = {
 };
 
 // Refresh server-rendered prices rather than freezing them at deployment time.
-export const revalidate = 60;
+export const dynamic = 'force-dynamic';
 
 export default async function Home() {
   const initialData = await getMarketData();

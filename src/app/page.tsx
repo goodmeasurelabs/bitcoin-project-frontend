@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     images: ["/play/card?score=0"],
   },
 };
-export const revalidate = 60;
+export const dynamic = 'force-dynamic';
 export default async function Home() {
   const [market, edition] = await Promise.all([
     getMarketData(),

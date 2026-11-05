@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import LiveGame from "./LiveGame";
 import { challengeScore } from "@/services/gameChart";
-type Props = { searchParams: { beat?: string } };
-export function generateMetadata({ searchParams }: Props): Metadata {
-  const score = challengeScore(searchParams.beat);
+type Props = { searchParams: Promise<{ beat?: string }> };
+export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
+  const score = challengeScore((await searchParams).beat);
   const title =
     score === null
       ? "Catch the next move · Live Bitcoin game"
@@ -36,6 +36,6 @@ export function generateMetadata({ searchParams }: Props): Metadata {
     },
   };
 }
-export default function PlayPage({ searchParams }: Props) {
-  return <LiveGame challengeTarget={challengeScore(searchParams.beat)} />;
+export default async function PlayPage({ searchParams }: Props) {
+  return <LiveGame challengeTarget={challengeScore((await searchParams).beat)} />;
 }

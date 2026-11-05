@@ -1,12 +1,5 @@
-import { getStore } from "@netlify/blobs";
-export const store = () =>
-  getStore({
-    name:
-      process.env.NEWSLETTER_ENV === "production"
-        ? "daily-bitcoin-v1"
-        : "daily-bitcoin-preview-v1",
-    consistency: "strong",
-  });
+import { currentStore } from '../../cloudflare/context.mjs';
+export const store = currentStore;
 export const json = (body, status = 200) =>
   Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
 export async function readBody(request) {

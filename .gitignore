@@ -40,3 +40,11 @@ next-env.d.ts
 
 # Local Netlify folder
 .netlify
+
+# Generated Cloudflare build output and local state.
+.open-next/
+.wrangler/
+.worker-dry-run/
+
+# Sanitized runtime release evidence is retained by Actions artifacts.
+/release-evidence/

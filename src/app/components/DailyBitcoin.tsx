@@ -204,7 +204,7 @@ export default function DailyBitcoin({
     { item_id: current?.id, edition_date: current?.date },
     current?.date || "none",
   );
-  const amountTimer = useRef<ReturnType<typeof setTimeout>>();
+  const amountTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(amountTimer.current), []);
   const [amount, setAmount] = useState("1");
   const [message, setMessage] = useState("");
