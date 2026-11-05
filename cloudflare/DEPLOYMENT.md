@@ -1,15 +1,13 @@
 # Cloudflare deployment
 
-Production: https://whatsbitcoinsprice.com/
+Production is https://whatsbitcoinsprice.com/, served by the existing `gm-bitcoin-price` Worker in account `ee641897681cddb2b23b18fb4b639034`. PR13 reconciles the migration in PR12 with deployment from GitHub `main`; neither PR represents a new Worker or database.
 
-Project: `gm-bitcoin-price` in David’s Cloudflare account. The **Deploy Cloudflare** GitHub Actions workflow builds and checks the selected source revision, deploys to this project, and verifies HTTPS.
+The workflow validates pull requests without deployment credentials. After a push to `main`, it uses the `cloudflare-production` environment and the existing approved encrypted `CLOUDFLARE_DEPLOY_TOKEN`. A manual run defaults to read-only **inspect**; an explicit **deploy** still requires current `main`. Inspection reads only this Worker's metadata and does not query D1. No credential value is stored in this repository.
 
-Activation requires merging the workflow into the default branch and supplying an approved encrypted `CLOUDFLARE_DEPLOY_TOKEN` secret for the `cloudflare-production` environment or repository. The migration CLI token is temporary and is not a GitHub credential. No token value is committed or sent to GitHub by this change. The workflow is prepared; no production CI deployment has been run.
+Production uses the explicit command `wrangler deploy --config wrangler.ci.jsonc --keep-vars`, with the exact source commit in the version annotation. This config excludes routes, custom domains and database migrations. Do not substitute `wrangler.jsonc`: that file retains migration-era custom-domain setup. Authenticated UI captures verify the existing apex/www domains separately because the token has only selected-Worker permissions.
 
-For Workers, `wrangler.ci.jsonc` preserves runtime bindings and excludes custom-domain management; domain cutovers remain separate operations. Runtime service secrets stay encrypted on the Worker. The source configuration retains full custom-domain setup for migration operations.
+The existing `BITCOIN_DB` binding remains `gm-bitcoin-data` (`74f8cb0b-6a5f-47fd-9152-ef725eb9f998`). Both existing daily schedules (06:00 and 13:00 UTC), relay secret name, runtime policy, Workers URL state and compatibility settings are checked before and after publication. Variable values are compared through hashes in artifacts; encrypted values are never read. Newsletter sending stays disabled. The guard never queries, imports, migrates or changes data or migration control gates.
 
-For Pages, Direct Upload preserves the current Pages project; no native Git connection is needed.
+Next16.4.5, OpenNext1.20.16 and Wrangler4.158.0 are pinned together. The adapter uses the webpack build and explicit asset HTML/not-found handling. The existing public Google Analytics ID remains supplied by the tracked public-only build configuration. App behavior changes are outside this release reconciliation.
 
-Original hosting remains available for rollback. Bitcoin rollback uses its approved D1 relay, not the old independent Blobs backend.
-
-The reconciliation draft adds validation on pull requests and deployment after a successful push to `main`; see [release verification](RELEASE.md). This is prepared automation, not evidence of a successful production Actions run.
+Original Netlify hosting remains available for rollback through its existing authenticated D1 relay; do not restore the old independent Blobs backend or rerun migration/control commands. See [release verification](RELEASE.md).

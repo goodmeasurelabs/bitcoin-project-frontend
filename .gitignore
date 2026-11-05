@@ -45,3 +45,6 @@ next-env.d.ts
 .open-next/
 .wrangler/
 .worker-dry-run/
+
+# Sanitized runtime release evidence is retained by Actions artifacts.
+/release-evidence/

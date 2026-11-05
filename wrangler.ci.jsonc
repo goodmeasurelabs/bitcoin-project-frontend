@@ -12,7 +12,9 @@
     "binding": "ASSETS",
     "run_worker_first": [
       "/robots.txt"
-    ]
+    ],
+    "html_handling": "none",
+    "not_found_handling": "none"
   },
   "vars": {
     "NEWSLETTER_ENV": "production",
