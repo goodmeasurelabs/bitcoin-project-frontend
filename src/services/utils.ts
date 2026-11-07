@@ -21,9 +21,11 @@ export async function getBitcoinStockChartData() {
   const now = new Date();
   const { start, end } = historyWindow(now);
   const params = new URLSearchParams({
-    granularity: "86400", start: new Date(start).toISOString(), end: new Date(end).toISOString()
+    granularity: "ONE_DAY", start: String(start / 1000), end: String(end / 1000), limit: "31"
   });
-  const response = await request(`https://api.exchange.coinbase.com/products/BTC-USD/candles?${params}`, 3600);
+  // Public market data on the same Coinbase host as the working quote feed.
+  // This endpoint needs no API key and returns numeric strings in candle objects.
+  const response = await request(`https://api.coinbase.com/api/v3/brokerage/market/products/BTC-USD/candles?${params}`, 3600);
   return normalizeCandles(await response.json(), now);
 }
 
