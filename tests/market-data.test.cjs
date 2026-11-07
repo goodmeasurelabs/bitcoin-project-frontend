@@ -32,6 +32,18 @@ test('empty, malformed, and stale historical responses fail explicitly', () => {
   }
 });
 
+test('public Coinbase candles use numeric closes, completed UTC days and a fresh final day', () => {
+  const publicCandle = (date, close) => ({ start: String(Date.parse(`${date}T00:00:00Z`) / 1000), close });
+  assert.deepEqual(normalizeCandles({ candles: [
+    publicCandle('2026-09-22', '90000'), publicCandle('2026-09-21', '81000.25'),
+    publicCandle('2026-09-20', '80000.50'), publicCandle('2026-09-19', ''),
+    publicCandle('2026-09-18', 'NaN'), null
+  ] }, now), [{ date: '2026-09-20', price: 80000.5 }, { date: '2026-09-21', price: 81000.25 }]);
+  for (const body of [{ candles: [] }, { candles: {} }, { candles: [publicCandle('2026-09-20', '80000')] }]) {
+    assert.throws(() => normalizeCandles(body, now));
+  }
+});
+
 test('server chart points include numeric converted baselines and consistent currency labels', () => {
   const history = [{ date: '2026-09-20', price: 70000 }, { date: '2026-09-21', price: 80000 }];
   const rates = { USD: 90000, EUR: 81000, JPY: 13500000 };
@@ -82,9 +94,20 @@ test('historical chart survives a quote outage', async () => {
   const { end } = historyWindow();
   const day = offset => new Date(end - offset * 86400000).toISOString().slice(0, 10);
   try {
-    global.fetch = async url => url.includes('exchange-rates')
-      ? new Response('Unavailable', { status: 503 })
-      : new Response(JSON.stringify([candle(day(1), 81000), candle(day(2), 80000)]));
+    global.fetch = async (url, options) => {
+      if (url.includes('exchange-rates')) return new Response('Unavailable', { status: 503 });
+      const request = new URL(url);
+      assert.equal(request.origin, 'https://api.coinbase.com');
+      assert.equal(request.pathname, '/api/v3/brokerage/market/products/BTC-USD/candles');
+      assert.equal(request.searchParams.get('granularity'), 'ONE_DAY');
+      assert.equal(request.searchParams.get('end'), String(end / 1000));
+      assert.equal(Number(request.searchParams.get('end')) - Number(request.searchParams.get('start')), 30 * 86400);
+      assert.equal(options.headers.Authorization, undefined, 'public data must not need credentials');
+      return new Response(JSON.stringify({ candles: [
+        { start: String(Date.parse(day(1)) / 1000), close: '81000' },
+        { start: String(Date.parse(day(2)) / 1000), close: '80000' }
+      ] }));
+    };
     const result = await getMarketData();
     assert.equal(result.quote, null);
     assert.equal(result.quoteError, true);

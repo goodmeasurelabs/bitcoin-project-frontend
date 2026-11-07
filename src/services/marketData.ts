@@ -28,12 +28,14 @@ export function historyWindow(now = new Date()) {
 }
 
 export function normalizeCandles(body: unknown, now = new Date()): DailyPrice[] {
-  if (!Array.isArray(body)) throw new Error("Invalid historical prices");
+  const candles = Array.isArray(body) ? body : (body as { candles?: unknown })?.candles;
+  if (!Array.isArray(candles)) throw new Error("Invalid historical prices");
   const { start, end } = historyWindow(now);
   const days = new Map<string, number>();
-  for (const candle of body) {
-    if (!Array.isArray(candle)) continue;
-    const [seconds, , , , price] = candle;
+  for (const candle of candles) {
+    const numeric = (value: unknown) => typeof value === "string" && value.trim() !== "" ? Number(value) : NaN;
+    const [seconds, price] = Array.isArray(candle) ? [candle[0], candle[4]]
+      : candle && typeof candle === "object" ? [numeric(candle.start), numeric(candle.close)] : [NaN, NaN];
     if (typeof seconds !== "number" || typeof price !== "number" ||
         !Number.isFinite(seconds) || !Number.isFinite(price) || price <= 0) continue;
     const timestamp = seconds * 1000;
